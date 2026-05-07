@@ -10,18 +10,19 @@ RUN pip3 install --upgrade pip && \
     pip3 install cmake
 
 WORKDIR /app
-RUN git clone https://github.com/ggerganov/llama.cpp.git .
 
-# Wir nutzen jetzt "cmake" (das von pip installierte)
+# Wir nutzen einen stabilen "Legacy"-Punkt von Anfang 2024 (vor dem großen CUDA-Refactoring)
+RUN git clone https://github.com/ggerganov/llama.cpp.git . && \
+    git checkout b1500
+
+# Jetzt bauen wir ohne die modernen Standard-Flags, die CUDA 10.2 überfordern
 RUN mkdir build && cd build && \
     /usr/local/bin/cmake .. \
     -DGGML_CUDA=ON \
     -DGGML_NATIVE=OFF \
     -DLLAMA_BUILD_TESTS=OFF \
     -DCMAKE_CUDA_ARCHITECTURES=53 \
-    -DCMAKE_CXX_STANDARD=14 \
-    -DCMAKE_CUDA_STANDARD=14 \
-    && /usr/local/bin/cmake --build . --config Release --target llama-server -- -j2
+    && /usr/local/bin/cmake --build . --config Release --target llama-server -- -j1
 # --- Stage 2: Runtime ---
 FROM ${BASE_IMAGE} AS server
 
