@@ -1,7 +1,7 @@
 ARG BASE_IMAGE=nvcr.io/nvidia/l4t-base:r32.7.1
 FROM ${BASE_IMAGE} AS build
 
-# 1. Abhängigkeiten installieren + Repository für GCC 8 (wichtig für ARM SIMD)
+# 1. System-Abhängigkeiten und Compiler GCC 8
 RUN apt-get update && apt-get install -y \
     software-properties-common \
     build-essential git libssl-dev libgomp1 python3 python3-pip curl && \
@@ -9,30 +9,35 @@ RUN apt-get update && apt-get install -y \
     apt-get update && \
     apt-get install -y gcc-8 g++-8
 
-# 2. CMake über pip upgraden
+# 2. CMake Upgrade via pip
 RUN pip3 install --upgrade pip && pip3 install cmake
 
 WORKDIR /app
 
-# Wir laden ein spezifisches Release als ZIP, da dein Git-Log zu kurz ist
+# 3. Download b2430 Archiv
 RUN curl -L https://github.com/ggerganov/llama.cpp/archive/refs/tags/b2430.tar.gz -o llama_b2430.tar.gz && \
     tar -xzf llama_b2430.tar.gz --strip-components=1
 
-# Build-Befehl für b2430 (hier hießen die Flags noch GGML_CUDA)
+# 4. Build mit b2430-spezifischen Flags (LLAMA_ statt GGML_)
+# Wir deaktivieren NEON, um den vld1q-Fehler zu vermeiden
 RUN mkdir build && cd build && \
     CC=gcc-8 CXX=g++-8 /usr/local/bin/cmake .. \
-    -DGGML_CUDA=ON \
-    -DGGML_NEON=OFF \
+    -DLLAMA_CUBLAS=ON \
+    -DLLAMA_NEON=OFF \
     -DCMAKE_CUDA_ARCHITECTURES=53 \
     -DCMAKE_CXX_STANDARD=14 \
     -DCMAKE_CUDA_STANDARD=14 \
-    && CC=gcc-8 CXX=g++-8 /usr/local/bin/cmake --build . --config Release --target llama-server -- -j1
-# --- Stage 2 (bleibt gleich, kopiere nur die Datei) ---
-FROM ${BASE_IMAGE} AS server
+    && CC=gcc-8 CXX=g++-8 /usr/local/bin/cmake --build . --config Release --target server -- -j1
+
+# --- Stage 2: Runtime ---
+FROM ${BASE_IMAGE}
+
 RUN apt-get update && apt-get install -y libgomp1 curl && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /app/build/bin/llama-server /usr/local/bin/llama-server
+# Kopiere das Binary (in b2430 heißt es 'server' und liegt oft in bin/)
+COPY --from=build /app/build/bin/server /usr/local/bin/llama-server
+
 WORKDIR /app
 ENTRYPOINT [ "/usr/local/bin/llama-server" ]
 CMD [ "-m", "/models/model.gguf", "--host", "0.0.0.0", "--port", "8080", "-ngl", "99" ]
