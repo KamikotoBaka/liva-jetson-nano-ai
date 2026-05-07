@@ -18,27 +18,22 @@ RUN git clone https://github.com/ggerganov/llama.cpp.git . && \
 # Jetzt bauen wir ohne die modernen Standard-Flags, die CUDA 10.2 überfordern
 RUN mkdir build && cd build && \
     /usr/local/bin/cmake .. \
-    -DGGML_CUDA=ON \
-    -DGGML_NATIVE=OFF \
+    -DLLAMA_CUBLAS=ON \
+    -DLLAMA_NATIVE=OFF \
     -DLLAMA_BUILD_TESTS=OFF \
     -DCMAKE_CUDA_ARCHITECTURES=53 \
-    && /usr/local/bin/cmake --build . --config Release --target llama-server -- -j1
+    && /usr/local/bin/cmake --build . --config Release --target server -- -j1
+
 # --- Stage 2: Runtime ---
 FROM ${BASE_IMAGE} AS server
 
 RUN apt-get update && apt-get install -y libgomp1 curl && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Kopiere die Binaries aus dem Build-Stage
-COPY --from=build /app/build/bin/llama-server /usr/local/bin/llama-server
-# Falls Bibliotheken benötigt werden:
-COPY --from=build /app/build/*.so* /usr/local/lib/
-RUN ldconfig
+# WICHTIG: In b1500 liegt das Binary oft direkt in build/bin/server 
+# oder build/examples/server/server
+COPY --from=build /app/build/bin/server /usr/local/bin/llama-server
 
 WORKDIR /app
-ENV LLAMA_ARG_HOST=0.0.0.0
-
-HEALTHCHECK CMD [ "curl", "-f", "http://localhost:8080/health" ]
-
 ENTRYPOINT [ "/usr/local/bin/llama-server" ]
 CMD [ "-m", "/models/model.gguf", "--host", "0.0.0.0", "--port", "8080", "-ngl", "99" ]
