@@ -13,19 +13,16 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install --upgrade pip && pip3 install cmake
 
 WORKDIR /app
-# Wir bleiben bei b1500, da diese Version am besten mit CUDA 10.2 harmoniert
-RUN git clone https://github.com/ggerganov/llama.cpp.git . && \
-    git checkout b1500
 
-# 3. Build mit GCC 8 erzwingen
+# Wir gehen auf eine Version von Mitte 2023 zurück (sehr stabil für Jetson Nano)
+RUN git clone https://github.com/ggerganov/llama.cpp.git . && \
+    git checkout master@{2023-06-01} 
+
+# In dieser Version hieß das Programm noch anders und die Flags waren simpler
 RUN mkdir build && cd build && \
     CC=gcc-8 CXX=g++-8 /usr/local/bin/cmake .. \
     -DLLAMA_CUBLAS=ON \
-    -DLLAMA_NATIVE=OFF \
-    -DLLAMA_BUILD_TESTS=OFF \
     -DCMAKE_CUDA_ARCHITECTURES=53 \
-    -DCMAKE_C_FLAGS="-DGGML_USE_NEON=OFF" \
-    -DCMAKE_CXX_FLAGS="-DGGML_USE_NEON=OFF" \
     && CC=gcc-8 CXX=g++-8 /usr/local/bin/cmake --build . --config Release --target server -- -j1
 
 # --- Stage 2 (bleibt gleich, kopiere nur die Datei) ---
