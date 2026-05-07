@@ -13,7 +13,7 @@ services:
     volumes:
       - ./models:/models
     command: ["-m", "/models/Qwen3.5-0.8B-Q5_K_M.gguf", "--port", "8080", "--host", "0.0.0.0", "-ngl", "99", "-c", "2048", "--threads", "4"]
-
+    restart: unless-stopped
   # 2. Whisper.cpp (Audio-zu-Text)
   whisper:
     build:
@@ -26,7 +26,8 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
       - ./models:/models
-    command: ["-m", "/models/ggml-base.bin", "--port", "8081", "--host", "0.0.0.0", "--threads", "6", "--no-gpu"]
+    command: ["-m", "/models/ggml-tiny.bin", "--port", "8081", "--host", "0.0.0.0", "--threads", "4", "--no-gpu"]
+    restart: unless-stopped
 
   # 3. Main Application
   my-app:
