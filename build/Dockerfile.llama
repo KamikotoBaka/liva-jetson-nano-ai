@@ -22,9 +22,8 @@ RUN mkdir build && cd build && \
     CC=gcc-8 CXX=g++-8 /usr/local/bin/cmake .. \
     -DLLAMA_CUBLAS=ON \
     -DLLAMA_NATIVE=OFF \
-    -DLLAMA_BUILD_TESTS=OFF \
+    -DLLAMA_K_QUANTS=OFF \
     -DCMAKE_CUDA_ARCHITECTURES=53 \
-    -DGGML_NEON=OFF \
     && CC=gcc-8 CXX=g++-8 /usr/local/bin/cmake --build . --config Release --target server -- -j1
 
 # --- Stage 2 (bleibt gleich, kopiere nur die Datei) ---
