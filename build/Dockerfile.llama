@@ -19,27 +19,29 @@ WORKDIR /app
 RUN curl -L https://github.com/ggerganov/llama.cpp/archive/refs/tags/b2430.tar.gz -o llama_b2430.tar.gz && \
     tar -xzf llama_b2430.tar.gz --strip-components=1
 
-# Build mit b2430-spezifischen Flags
+# --- DIE RETTUNG: NEON HARDWARE-ERKENNUNG AUSHEBELN ---
+# Wir überschreiben die Prüfung auf ARM_NEON in den zentralen Dateien
+RUN sed -i 's/#if defined(__ARM_NEON)/#if 0 \/\/ disabled/g' ggml.c && \
+    sed -i 's/#if defined(__ARM_NEON)/#if 0 \/\/ disabled/g' ggml-quants.c && \
+    sed -i 's/#if defined(__ARM_NEON)/#if 0 \/\/ disabled/g' ggml.h
+
+# Build mit GGML_CUDA (da b2430 CUBLAS als veraltet ansieht)
 RUN mkdir build && cd build && \
     CC=gcc-8 CXX=g++-8 /usr/local/bin/cmake .. \
-    -DLLAMA_CUBLAS=ON \
-    -DLLAMA_NEON=OFF \
+    -DGGML_CUDA=ON \
     -DCMAKE_CUDA_ARCHITECTURES=53 \
     -DCMAKE_CXX_STANDARD=14 \
     -DCMAKE_CUDA_STANDARD=14 \
     && CC=gcc-8 CXX=g++-8 /usr/local/bin/cmake --build . --config Release --target server -- -j1
 
-
-# Phase 2: Runtime (Hier MUSS "AS server" stehen!)
+# Phase 2: Runtime
 FROM ${BASE_IMAGE} AS server
-
 RUN apt-get update && apt-get install -y libgomp1 curl && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Kopiere das Binary aus der Build-Phase
-# Wir nutzen "find", falls der Pfad je nach Version leicht variiert
 COPY --from=build /app/build/bin/server /usr/local/bin/llama-server
 
 WORKDIR /app
 ENTRYPOINT [ "/usr/local/bin/llama-server" ]
+# Wir nutzen -ngl 99 um alles auf die GPU zu schieben
 CMD [ "-m", "/models/model.gguf", "--host", "0.0.0.0", "--port", "8080", "-ngl", "99" ]
