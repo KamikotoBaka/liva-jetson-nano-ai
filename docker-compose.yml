@@ -7,7 +7,7 @@ services:
       dockerfile: build/Dockerfile.llama
       target: server
     container_name: liva-llm
-    runtime: nvidia
+    
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
@@ -20,7 +20,7 @@ services:
       context: .
       dockerfile: build/Dockerfile.whisper
     container_name: whisper-api
-    runtime: nvidia
+    
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
