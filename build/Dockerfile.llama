@@ -21,9 +21,11 @@ RUN git clone https://github.com/ggerganov/llama.cpp.git . && \
 # In dieser Version hieß das Programm noch anders und die Flags waren simpler
 RUN mkdir build && cd build && \
     CC=gcc-8 CXX=g++-8 /usr/local/bin/cmake .. \
-    -DLLAMA_CUBLAS=ON \
+    -DGGML_CUDA=ON \
+    -DGGML_CUDA_FORCE_MMQ=ON \
+    -DGGML_NEON=OFF \
     -DCMAKE_CUDA_ARCHITECTURES=53 \
-    && CC=gcc-8 CXX=g++-8 /usr/local/bin/cmake --build . --config Release --target server -- -j1
+    && CC=gcc-8 CXX=g++-8 /usr/local/bin/cmake --build . --config Release --target llama-server -- -j1
 
 # --- Stage 2 (bleibt gleich, kopiere nur die Datei) ---
 FROM ${BASE_IMAGE} AS server
