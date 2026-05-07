@@ -1,25 +1,25 @@
-# Für den alten Jetson Nano nutzen wir das offizielle NVIDIA L4T Base Image
-# Das sorgt dafür, dass CUDA 10.2 korrekt mit dem Tegra-Treiber kommuniziert.
 ARG BASE_IMAGE=nvcr.io/nvidia/l4t-base:r32.7.1
 FROM ${BASE_IMAGE} AS build
 
-# Abhängigkeiten installieren (Vorsicht: Altes Ubuntu 18.04 im l4t-base)
+# Abhängigkeiten installieren + pip für das CMake-Upgrade
 RUN apt-get update && apt-get install -y \
-    build-essential cmake git libssl-dev libgomp1 python3 python3-pip curl
+    build-essential git libssl-dev libgomp1 python3 python3-pip curl
+
+# WICHTIG: CMake über pip upgraden, um die benötigte Version (>3.14) zu erhalten
+RUN pip3 install --upgrade pip && \
+    pip3 install cmake
 
 WORKDIR /app
-# Wir klonen eine stabile Version
 RUN git clone https://github.com/ggerganov/llama.cpp.git .
 
-# Kompilierung für Jetson Nano (Maxwell = Arch 53)
+# Wir nutzen jetzt "cmake" (das von pip installierte)
 RUN mkdir build && cd build && \
-    cmake .. \
+    /usr/local/bin/cmake .. \
     -DGGML_CUDA=ON \
     -DGGML_NATIVE=OFF \
     -DLLAMA_BUILD_TESTS=OFF \
     -DCMAKE_CUDA_ARCHITECTURES=53 \
-    && cmake --build . --config Release --target llama-server -- -j2
-
+    && /usr/local/bin/cmake --build . --config Release --target llama-server -- -j2
 # --- Stage 2: Runtime ---
 FROM ${BASE_IMAGE} AS server
 
