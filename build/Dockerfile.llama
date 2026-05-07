@@ -1,0 +1,41 @@
+# Für den alten Jetson Nano nutzen wir das offizielle NVIDIA L4T Base Image
+# Das sorgt dafür, dass CUDA 10.2 korrekt mit dem Tegra-Treiber kommuniziert.
+ARG BASE_IMAGE=nvcr.io/nvidia/l4t-base:r32.7.1
+FROM ${BASE_IMAGE} AS build
+
+# Abhängigkeiten installieren (Vorsicht: Altes Ubuntu 18.04 im l4t-base)
+RUN apt-get update && apt-get install -y \
+    build-essential cmake git libssl-dev libgomp1 python3 python3-pip curl
+
+WORKDIR /app
+# Wir klonen eine stabile Version
+RUN git clone https://github.com/ggerganov/llama.cpp.git .
+
+# Kompilierung für Jetson Nano (Maxwell = Arch 53)
+RUN mkdir build && cd build && \
+    cmake .. \
+    -DGGML_CUDA=ON \
+    -DGGML_NATIVE=OFF \
+    -DLLAMA_BUILD_TESTS=OFF \
+    -DCMAKE_CUDA_ARCHITECTURES=53 \
+    && cmake --build . --config Release --target llama-server -- -j2
+
+# --- Stage 2: Runtime ---
+FROM ${BASE_IMAGE} AS server
+
+RUN apt-get update && apt-get install -y libgomp1 curl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Kopiere die Binaries aus dem Build-Stage
+COPY --from=build /app/build/bin/llama-server /usr/local/bin/llama-server
+# Falls Bibliotheken benötigt werden:
+COPY --from=build /app/build/*.so* /usr/local/lib/
+RUN ldconfig
+
+WORKDIR /app
+ENV LLAMA_ARG_HOST=0.0.0.0
+
+HEALTHCHECK CMD [ "curl", "-f", "http://localhost:8080/health" ]
+
+ENTRYPOINT [ "/usr/local/bin/llama-server" ]
+CMD [ "-m", "/models/model.gguf", "--host", "0.0.0.0", "--port", "8080", "-ngl", "99" ]

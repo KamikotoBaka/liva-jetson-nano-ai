@@ -1,0 +1,39 @@
+# L4T-Image passend zum Jetson Nano (Ubuntu 18.04 / CUDA 10.2)
+ARG BASE_IMAGE=nvcr.io/nvidia/l4t-base:r32.7.1
+FROM ${BASE_IMAGE} AS builder
+
+RUN apt-get update && apt-get install -y \
+    build-essential git cmake ca-certificates curl
+
+WORKDIR /app
+# Whisper.cpp klonen
+RUN git clone --depth 1 --recurse-submodules https://github.com/ggerganov/whisper.cpp.git .
+
+# Kompilieren für Jetson Nano (Maxwell = Arch 53)
+RUN cmake -B build \
+    -DGGML_CUDA=ON \
+    -DWHISPER_BUILD_SERVER=ON \
+    -DWHISPER_BUILD_EXAMPLES=OFF \
+    -DWHISPER_BUILD_TESTS=OFF \
+    -DCMAKE_CUDA_ARCHITECTURES=53
+
+RUN cmake --build build --config Release --target server -- -j1
+
+# --- Stage 2: Runtime ---
+FROM ${BASE_IMAGE}
+
+RUN apt-get update && apt-get install -y libgomp1 curl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Kopiere nur das benötigte Binary und die Libs
+COPY --from=builder /app/build/bin/server /usr/local/bin/whisper-server
+COPY --from=builder /app/build/*.so* /usr/local/lib/
+RUN ldconfig
+
+EXPOSE 8082
+
+ENTRYPOINT ["whisper-server"]
+# Standard-Command: Wir erzwingen CPU-Nutzung mit -ng (no-gpu) für 4GB Stabilität
+CMD ["-m", "/models/ggml-tiny.bin", "--host", "0.0.0.0", "--port", "8082", "--threads", "4", "-ng"]
