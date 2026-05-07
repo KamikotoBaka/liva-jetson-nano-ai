@@ -1,4 +1,4 @@
-version: '2.4'  # Diese Zeile ist für alte Docker-Versionen extrem wichtig!
+version: '3.3'  # Diese Zeile ist für alte Docker-Versionen extrem wichtig!
 services:
   # 1. Non-Thinking LLM (Qwen 3.5 0.8B)
   llm:
@@ -48,5 +48,4 @@ services:
 
 networks:
   proxy-nw:
-    external: 
-      name: proxy-nw
+    external: true
