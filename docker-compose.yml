@@ -1,0 +1,49 @@
+services:
+  # 1. Non-Thinking LLM (Qwen 3.5 0.8B)
+  llm:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.llama
+      target: server
+    container_name: liva-llm
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ./models:/models
+    command: ["-m", "/models/Qwen3.5-0.8B-Q5_K_M.gguf", "--port", "8080", "--host", "0.0.0.0", "-ngl", "99", "-c", "2048", "--threads", "4"]
+
+  # 2. Whisper.cpp (Audio-zu-Text)
+  whisper:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.whisper
+    container_name: whisper-api
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ./models:/models
+    command: ["-m", "/models/ggml-base.bin", "--port", "8081", "--host", "0.0.0.0", "--threads", "6", "--no-gpu"]
+
+  # 3. Main Application
+  my-app:
+    build: project/
+    container_name: liva-app
+    depends_on:
+      - llm
+      - whisper
+    environment:
+      - NON_THINKING_URL=http://llm:8080
+      - WHISPER_URL=http://whisper:8081
+    ports:
+      - "5000:5000"
+    networks:
+      - proxy-nw
+      - default
+
+networks:
+  proxy-nw:
+    external: true

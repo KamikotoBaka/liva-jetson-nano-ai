@@ -1,0 +1,30 @@
+[
+  {
+    "id": "f4389d73-cdef-421f-b4f3-6360ca2d6bbb",
+    "timestamp": "2026-03-05T16:58:58.158679+00:00",
+    "device": "Living room lamp",
+    "reason": "Connection interrupted",
+    "intent": "identify_error"
+  },
+  {
+    "id": "0f148510-1f17-44bb-b469-8520215f0129",
+    "timestamp": "2026-03-05T16:35:27.583904+00:00",
+    "device": "Living room lamp",
+    "reason": "Connection interrupted",
+    "intent": "identify_error"
+  },
+  {
+    "id": "4a4d6fe8-c89c-411d-afa6-265757d4c3c8",
+    "timestamp": "2026-03-05T16:32:43.608859+00:00",
+    "device": "Living room lamp",
+    "reason": "Connection interrupted",
+    "intent": "identify_error"
+  },
+  {
+    "id": "08d9b447-e9ed-427a-80de-4c455a0bde8b",
+    "timestamp": "2026-03-05T16:30:20.321488+00:00",
+    "device": "Living room lamp",
+    "reason": "Connection interrupted",
+    "intent": "identify_error"
+  }
+]

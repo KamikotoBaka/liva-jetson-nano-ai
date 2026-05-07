@@ -1,0 +1,26 @@
+# Python bytecode and caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local virtual environments
+.venv/
+
+# Node dependencies and build output
+node_modules/
+vite-project/node_modules/
+vite-project/dist/
+vite-project/build/
+
+# Editor and OS files
+.vscode/
+Thumbs.db
+Desktop.ini
+
+# Local runtime data that should stay outside the image
+models/
+data/voiceprints/

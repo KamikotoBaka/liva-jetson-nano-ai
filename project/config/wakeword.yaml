@@ -1,0 +1,5 @@
+target_wakeword: liva
+threshold: 0.5
+# For custom wakeword (recommended for LIVA), place your model file and set path.
+# Example: custom_model_path: models/liva.onnx
+custom_model_path: models/liva.onnx

@@ -1,0 +1,7 @@
+{
+  "theme": "black",
+  "speechModel": "medium",
+  "computeDevice": "cpu",
+  "responseMode": "llm",
+  "voiceVolume": 75
+}

@@ -1,0 +1,50 @@
+# Models and large binaries
+models/
+models-whisper/
+*.gguf
+*.bin
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+pip-wheel-metadata/
+.venv
+project/.venv
+venv/
+env/
+ENV/
+
+# Environment files
+.env
+.env.*
+
+# IDEs and editors
+.vscode/
+.idea/
+
+# Node
+node_modules/
+**/node_modules/
+
+# Build / distribution
+dist/
+build/
+*.egg
+*.whl
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

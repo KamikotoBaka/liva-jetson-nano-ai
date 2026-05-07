@@ -1,0 +1,33 @@
+# Git metadata
+.git
+.gitignore
+
+# Python bytecode and caches
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local virtual environments
+.venv/
+project/.venv/
+
+# Node dependencies and builds
+node_modules/
+project/node_modules/
+project/vite-project/node_modules/
+project/vite-project/dist/
+project/vite-project/build/
+
+# Editor and OS files
+.vscode/
+Thumbs.db
+Desktop.ini
+
+# Large local model caches and runtime data that are mounted at runtime
+models/
+project/models/
+project/data/voiceprints/

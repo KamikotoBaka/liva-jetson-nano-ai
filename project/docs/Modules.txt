@@ -1,0 +1,393 @@
+Modul               Tool/Lib                        Beschreibung
+STT                 Whisper (OpenAI, lokal)         Sprache → Text, läuft komplett offline
+NLU / Intent        Regex + eigene Logik            "Fehler identifizieren" → Intent erkennen
+TTS                 Piper oder pyttsx3              Text → Sprache, lokal
+REST Adapter        httpx / requests                REST-Geräte ansprechen
+MQTT Adapter        paho-mqtt                       MQTT-Geräte ansprechen 
+Command Dispatcher  eigene Python-Klasse            verteilt Intent → richtiger Adapter
+
+
+Ablauf-Beispiel
+1. User spricht: "Fehler identifizieren"
+         ↓
+2. STT (Whisper) → Text: "Fehler identifizieren"
+         ↓
+3. NLU / Intent Detection
+   → Intent: identify_error
+   → Entity: kein spezifisches Gerät → alle prüfen
+         ↓
+4. Command Dispatcher
+   → ruft REST Adapter auf: GET /api/devices/status
+   → ruft MQTT Adapter auf: subscribe devices/+/error
+         ↓
+5. Geräteantwort auswerten
+   → Gerät "Lampe Wohnzimmer": status=error
+         ↓
+6. Antwort-Text generieren:
+   → "Gerät Lampe Wohnzimmer meldet einen Fehler: Verbindung unterbrochen"
+         ↓
+7. TTS (Piper) → Sprachausgabe
+         ↓
+8. UI: alle 3 Felder aktualisiert
+
+
+Überlegung:
+Whisper ist zu stark für kleine geräte, die möglichkeit ist die Vosk zu nutzen oder faster-whisper 
+(4x schneller als original Whisper, gleiche Qualität!), Reaktion 1-2 Sekunden.
+
+LIVA Wakeword Training Toolkit
+
+Added helper scripts under `training/liva`:
+- `setup_train_env.ps1` creates a dedicated Python 3.11 training environment
+- `prepare_dataset.py` validates and splits WAV clips
+- `train_liva_verifier.py` trains a verifier model (`models/liva_verifier.pkl`)
+- `run_pipeline.ps1` executes the full data-prepare + train sequence
+
+Note:
+- The verifier artifact (`.pkl`) is an intermediate step.
+- Full backend custom wakeword mode still expects a custom ONNX model at `models/liva.onnx`.
+
+
+Quick Start (MVP)
+1. Python Backend starten:
+      pip install -r requirements.txt
+      uvicorn main:app --reload --host 127.0.0.1 --port 8000
+      oder 
+      python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+
+2. React UI starten (in vite-project):
+      npm install
+      npm run dev
+
+3. UI öffnen:
+      http://localhost:5173
+
+Hinweis:
+- STT nutzt aktuell typed text als Eingang (für schnelles UI-Testing).
+- Adapter-Antworten sind im MVP simuliert und können später direkt mit echten REST/MQTT Geräten verbunden werden.
+
+Troubleshooting (Uvicorn)
+- Fehler "Could not import module main" bedeutet meist: falsches Arbeitsverzeichnis.
+- Starte Backend aus dem Projekt-Root (Ordner mit main.py):
+      cd C:\Users\DAgarkov\Desktop\project (Projetc Folder)
+      uvicorn main:app --reload --host 127.0.0.1 --port 8000 
+      oder 
+      python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+- Falls du im vite-project Ordner bleibst, nutze stattdessen:
+      uvicorn --app-dir .. main:app --reload --host 127.0.0.1 --port 8000
+
+- Wenn nach eine installation von Uvicorn, wird der uvicorn nich im system angezeigt, 
+  dann muss man Uvicorn in das PATH includieren mit:
+            $env:PATH += ";C:\Users\*NAME*\AppData\Local\Python\pythoncore-3.14-64\Scripts"
+            !Vorsicht: Der ordner wo der uvicorn abgespeichert ist kann sich unterscheiden! 
+
+
+
+-------------------------------------------------------------------------------------------------------
+
+Fischertechnik Lernfabrik 4.0 (9V V2)
+Fischertechnik Lernfabrik
+        │
+   MQTT Broker (Mosquitto)
+   auf TXT Controller
+        │
+        ├── MQTT-Adapter ──► Voice Assistent Backend
+        │                               │
+        └── Node-RED Dashboard          ▼
+                                  FastAPI + STT/NLU/TTS
+                                        │
+                                   React Frontend
+
+Sprachbefehl                  MQTT Topic                    Aktion
+„Maschine stoppen"            factory/conveyor/cmd          {"cmd": "stop"}
+„Fehler abfragen"             factory/+/status              subscribe + auslesen
+„Umgebung prüfen"             factory/env/sensor            Temp, Luftdruck ausgeben
+„Wo ist Werkstück 3?"         factory/nfc/tracking          NFC-ID abfragen
+„Förderband starten"          factory/conveyor/cmd          {"cmd": "start"}
+„Lager status"                factory/warehouse/status      Füllstand abfragen
+
+
+
+Sprachbefehl                  Was passiert im Hintergrund
+„Log-Datei öffnen"            REST-Call an Node-RED API → letzte Logs abrufen → TTS liest Fehler vor
+„Maschine neu starten"        MQTT publish restart-command → warten auf confirm-Topic → TTS bestätigt
+„Produktionsbericht"          mehrere MQTT Topics abfragen → Zusammenfassung generieren → TTS
+„Werkstück verfolgen"         NFC-ID abfragen → aktuellen Status in Pipeline ausgeben
+
+Ein argumentieren:
+
+„Der entwickelte Sprachassistent wurde nicht nur theoretisch evaluiert, sondern an einer realen industriellen 
+Miniaturumgebung (Fischertechnik Lernfabrik 4.0) getestet, die dieselben Kommunikationsprotokolle (MQTT) wie 
+echte Industrieanlagen verwendet."
+
+Nächste Schritte:
+
+1. MQTT-Topics der Fabrik dokumentieren – mit einem MQTT-Client (z.B. MQTT Explorer) alle verfügbaren Topics aufzeichnen
+2. devices.yaml erweitern mit den echten Fischertechnik-Topics
+3. Use-Cases testen – Fehler provozieren, per Sprache abfragen, Maschine neu starten
+4. Latenz messen – von Sprachbefehl bis Maschinenreaktion → perfekte Evaluationsmetrik
+
+
+-------------------------------------------------------------------------------------------------------
+
+Betriebsystem Befehle:
+
+!In de fall wir ein befehl für apache neustarten indentifiziert!
+
+subprocess wichtig: 
+import subprocess
+
+def execute_system_command(command: list) -> dict:
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        return {
+            "success": result.returncode == 0,
+            "output": result.stdout,
+            "error": result.stderr,
+            "returncode": result.returncode
+        }
+    except subprocess.TimeoutExpired:
+        return {"success": False, "error": "Timeout"}
+
+device.yaml erwitern: 
+
+intents:
+  - name: "Apache neustarten"
+    intent: restart_apache
+    actions:
+      - type: SHELL
+        command: ["systemctl", "restart", "apache2"]
+    response: "Apache Server wurde neugestartet"
+
+  - name: "System Status"
+    intent: system_status  
+    actions:
+      - type: SHELL
+        command: ["systemctl", "status", "apache2"]
+    response: "Status: {output}"
+
+!WIchtig eine white list ertellen!
+
+ALLOWED_COMMANDS = {
+    "restart_apache":  ["systemctl", "restart", "apache2"],
+    "stop_apache":     ["systemctl", "stop",    "apache2"],
+    "restart_nginx":   ["systemctl", "restart", "nginx"],
+    "system_status":   ["systemctl", "status",  "apache2"],
+    "check_disk":      ["df", "-h"],
+    "check_memory":    ["free", "-h"],
+}
+
+def execute_intent_command(intent: str) -> dict:
+    if intent not in ALLOWED_COMMANDS:
+        return {"success": False, "error": "Befehl nicht erlaubt"}
+    
+    command = ALLOWED_COMMANDS[intent]
+    return execute_system_command(command)
+
+
+
+
+Szenarien:
+| Sprachbefehl | Shell-Befehl | Einsatz |
+|---|---|---|
+| „Apache neustarten" | `systemctl restart apache2` | Web-Server Recovery |
+| „Dienst Status prüfen" | `systemctl status nginx` | Monitoring |
+| „Speicher prüfen" | `df -h` | Ressourcen-Überwachung |
+| „Log öffnen" | `tail -n 50 /var/log/syslog` | Fehleranalyse |
+| „Netzwerk prüfen" | `ping -c 3 192.168.1.1` | Konnektivität |
+| „Prozesse anzeigen" | `ps aux --sort=-%cpu` | Performance |
+
+In dem fall werde adapter erweitert:
+Voice Command
+      │
+      ▼
+  NLU / Intent
+      │
+      ├──► REST Adapter    → HTTP Geräte
+      ├──► MQTT Adapter    → IoT / Fischertechnik
+      └──► Shell Adapter   → Betriebssystem / Dienste
+
+--------------------------------------NAME--------------------------------------------------------------
+Liva - Light Voice Assistent?
+
+Liva - Live Voice Assistent?
+
+LIVA – Local Intelligent Voice Assistant
+Local → dein Kernargument: kein Cloud, Datenschutz
+Intelligent → proaktive Warnungen, Kontext-Bewusstsein
+Voice → STT + TTS Pipeline
+Assistant → der Gesamtcharakter des Systems
+-------------------------------------------------------------------------------------------------------
+
+SQL lite  wase added to prevent data loss, it can be downloaded: http://127.0.0.1:8000/api/errors/export
+Die Logsdata sind auch als Button downloadded verfügbar 
+
+Möglich:
+# Jeden Tag um 08:00 automatisch Status abfragen
+schedule: "08:00"
+intent: system_status
+
+-------------------------------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------------------------------
+
+Timer Setzen!
+
+-------------------------------------------------------------------------------------------------------
+Jarvis Inspiration xD
+Kontext-Bewusstsein:
+User:  "Zeige Fehler vom Förderband"
+VA:    "Fehler um 14:32 – Motor überhitzt"
+User:  "Wann war das letzte Mal?"    ← kein Gerät genannt!
+VA:    "Davor war ein Fehler um 09:15"  ← VA weiß noch: Förderband
+
+Proaktive Warnungen:
+VA: "Achtung – Temperatur im Lager steigt seit 10 Minuten.
+     Aktuell 42°C. Soll ich einen Alarm setzen?"
+
+Aufgaben bestätigen lassen:
+User:  "Maschine neustarten"
+VA:    "Soll ich die Maschine wirklich neustarten? 
+        Aktuell laufen 2 Prozesse."
+User:  "Ja, bestätigt"
+VA:    "Neustart wird durchgeführt"
+
+Anomalie-Erkennung:
+VA: "Ungewöhnliche Aktivität erkannt – Förderband läuft 
+     seit 3 Stunden ohne Pause. Normal sind 45 Minuten."
+
+Mehrschritt-Diagnose:
+User:  "Fehler diagnostizieren"
+VA:    "Schritt 1: Prüfe Netzwerk... OK
+        Schritt 2: Prüfe MQTT-Broker... OK  
+        Schritt 3: Prüfe Gerätestatus... FEHLER
+        Gerät Förderband antwortet nicht seit 5 Minuten.
+        Empfehlung: Neustart durchführen?"
+
+
+
+!!!!!!!!!!!Ziel: proaktiv informieren, nicht nur reagiert.!!!!!!!!!!!
+
+
+
+Klinik!
+
+Benachrichtigung an das Handy
+
+Kategorisieren! Selber ausgeben
+1. Standart Befehle
+2. EXtra Befehle ---> Fischertechnik
+                 ---> Smart Home 
+                 ---> etc.
+
+
+Stimme Erkennung, buch seite 101
+User für Stimme Erkennung:  Admin: --> Alles Erlaub 
+                            Guest: --> Teilweise
+In UI auswehlbar/zuweisbar nach User priorität 
+#
+
+
+ Übersicht über aufgerufene Funktionen von Sprachassistenten in den USA nach Thema 
+und Nutzungszeitraum Seite 161
+
+Radio abspielen
+
+
+Eigenes kallender erstellen
+
+
+┌─────────────────────────────────────────────┐
+│ ⚙️  LIVA Einstellungen                      │
+├─────────────────────────────────────────────┤
+│                                             │
+│  🎤 Spracherkennung                         │
+│  ┌─────────────────────────────────────┐    │
+│  │ Modell:  ○ tiny  ○ base  ● medium   │    │
+│  │ Gerät:   ● CPU   ○ CUDA             │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│  🧠 Antwort-Modus                           │
+│  ┌─────────────────────────────────────┐    │
+│  │  ○ Template  (schnell, Raspberry)   │    │
+│  │  ● LLM       (intelligent, Jetson)  │    │
+│  │                                     │    │
+│  │  LLM Modell: [phi3-mini        ▼]   │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│  🔊 Sprachausgabe                           │
+│  ┌─────────────────────────────────────┐    │
+│  │  Stimme:  [de-thorsten-low     ▼]   │    │
+│  │  Lautstärke: ────●────────  75%     │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│  [💾 Speichern]       [🔄 Zurücksetzen]    │
+└─────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│  Neuen Befehl erstellen                 │
+├─────────────────────────────────────────┤
+│  Sprachbefehl:  [Fehler identifizieren] │
+│  Intent-Name:   [identify_error       ] │
+├─────────────────────────────────────────┤
+│  Aktion:                                │
+│  Typ:     [REST ▼]                      │
+│  Methode: [GET  ▼]                      │
+│  URL:     [/api/devices/status        ] │
+├─────────────────────────────────────────┤
+│  Antwort-Template:                      │
+│  [Gerät {device_name} meldet: {status}] │
+│                                         │
+│  Felder:                                │
+│  device_name → [data.name    ]          │
+│  status      → [data.status  ]          │
+├─────────────────────────────────────────┤
+│  [💾 Speichern]  [🎤 Testen]           │
+└─────────────────────────────────────────┘
+
++ noch die kategorie 
+
+How to make switching actually affect your assistant behavior
+
+Change processing path from typed text to audio STT.
+Add an audio endpoint (for example /api/process-audio) in main.py:
+receive uploaded wav/webm
+convert to wav if needed
+call stt.transcribe_audio(...)
+then pass transcript to dispatcher.
+Keep current /api/process for debug/manual text input.
+That is the key point: model switching is already implemented correctly, 
+but it only becomes meaningful when requests go through transcribe_audio, not transcribe_text.
+
+
+
+ToDOs:
+1.Spracherkennung (Funktioniert, muss noch ind das Workflow implementieren!)
+2.Benachrichtigung an das Handy
+3.Proaktiv informieren
+4.Auf verschidene geräte Testen
+5.Template Testen
+6.Verschidene Modellen auswahl
+7.UI Testen
+8.Backend Testen
+9.LLM
+10.Camera
+11.Dateien hinzufügen 
+12.Refactoring
+
+
+PS C:\Users\DAgarkov\OneDrive - M&M Software GmbH\Desktop\project\.venv\Scripts>
+ .\python.exe -m uvicorn --app-dir "C:\Users\DAgarkov\OneDrive - M&M Software GmbH\Desktop\project" main:app --host 127.0.0.1 --port 8000 --reload
+
+
+ mqtt zugriff 
+  ssh -L 18830:127.0.0.1:2883 ft@192.168.0.100 -N
+  fischertechnik
+   mosquitto_pub -h 127.0.0.1 -p 2883 -u txt -P xtx -t "i/bme680" -v
+mosquitto_sub -h 127.0.0.1 -p 2883 -u txt -P xtx -t "#" -v
