@@ -19,6 +19,8 @@ RUN mkdir build && cd build && \
     -DGGML_NATIVE=OFF \
     -DLLAMA_BUILD_TESTS=OFF \
     -DCMAKE_CUDA_ARCHITECTURES=53 \
+    -DCMAKE_CXX_STANDARD=14 \
+    -DCMAKE_CUDA_STANDARD=14 \
     && /usr/local/bin/cmake --build . --config Release --target llama-server -- -j2
 # --- Stage 2: Runtime ---
 FROM ${BASE_IMAGE} AS server
