@@ -2,31 +2,32 @@ version: '2.3'  # Diese Zeile ist für alte Docker-Versionen extrem wichtig!
 services:
   # 1. Non-Thinking LLM (Qwen 3.5 0.8B)
   llm:
-    build:
-      context: .
-      dockerfile: build/Dockerfile.llama
-      target: server
+    # Wir nutzen ein fertiges Image von DustynV (NVIDIA Community Manager)
+    # Er baut diese speziell für JetPack 4.6.1 / Nano
+    image: dustynv/llama_cpp:r32.7.1 
     container_name: liva-llm
-    
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    runtime: nvidia
+    ports:
+      - "8080:8080"
     volumes:
       - ./models:/models
-    command: ["-m", "/models/Qwen3.5-0.8B-Q5_K_M.gguf", "--port", "8080", "--host", "0.0.0.0", "-ngl", "99", "-c", "2048", "--threads", "4"]
+    # Der Befehl muss an die Syntax des fertigen Images angepasst werden
+    command: python3 -m llama_cpp.server --model /models/Qwen3.5-0.8B-Q5_K_M.gguf --n_gpu_layers 99 --host 0.0.0.0 --port 8080
+    
   # 2. Whisper.cpp (Audio-zu-Text)
   whisper:
-    build:
-      context: .
-      dockerfile: build/Dockerfile.whisper
+    # Dieses Image ist für JetPack 4.6.1 vorkompiliert
+    image: dustynv/whisper_cpp:r32.7.1
     container_name: whisper-api
-    
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
       - ./models:/models
-    command: ["-m", "/models/ggml-tiny.bin", "--port", "8081", "--host", "0.0.0.0", "--threads", "4", "--no-gpu"]
+    ports:
+      - "8081:8081"
+    # Wir starten den fertigen Server im Image
+    command: whisper-server --model /models/ggml-tiny.bin --port 8081 --host 0.0.0.0
 
   # 3. Main Application
   my-app:
